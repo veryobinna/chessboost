@@ -41,31 +41,35 @@ export default async function DashboardPage() {
       <section className="rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">Your repertoires</h2>
-          <button
-            disabled
-            className="cursor-not-allowed rounded-lg border border-border px-3 py-1.5 text-sm text-muted"
-            title="Coming in Phase 1"
+          <Link
+            href="/repertoires/new"
+            className="rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent"
           >
-            + Import (soon)
-          </button>
+            + Import
+          </Link>
         </div>
 
         {repertoires.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">
-            No repertoires yet. Importing a PGN or Lichess study lands in Phase 1
-            — for now, your guest session and the data layer are wired up.
+            No repertoires yet.{" "}
+            <Link href="/repertoires/new" className="text-accent hover:underline">
+              Import a PGN
+            </Link>{" "}
+            to get started.
           </p>
         ) : (
           <ul className="divide-y divide-border">
             {repertoires.map((r) => (
-              <li
-                key={r.id}
-                className="flex items-center justify-between py-3"
-              >
-                <span className="font-medium">{r.name}</span>
-                <span className="text-sm text-muted">
-                  {r.color.toLowerCase()} · {r._count.nodes} moves
-                </span>
+              <li key={r.id}>
+                <Link
+                  href={`/repertoires/${r.id}`}
+                  className="flex items-center justify-between py-3 transition hover:text-accent"
+                >
+                  <span className="font-medium">{r.name}</span>
+                  <span className="text-sm text-muted">
+                    {r.color.toLowerCase()} · {r._count.nodes} moves
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
