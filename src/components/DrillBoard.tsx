@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Chess } from "chess.js";
+import { Chess, type Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import type { DrillCard } from "@/lib/drill";
 import { START_FEN } from "@/lib/drill";
@@ -13,6 +13,8 @@ type Phase = "await" | "right" | "wrong";
 const GREEN = "rgba(34, 197, 94, 0.45)";
 const YELLOW = "rgba(245, 158, 11, 0.35)";
 const RED = "rgba(239, 68, 68, 0.45)";
+const SELECT = "rgba(245, 158, 11, 0.55)";
+const DOT = "radial-gradient(circle, rgba(245, 158, 11, 0.6) 22%, transparent 24%)";
 
 function contextLine(context: { san: string; ply: number }[]): string {
   return context
@@ -37,6 +39,7 @@ export default function DrillBoard({
   const [phase, setPhase] = useState<Phase>("await");
   const [boardFen, setBoardFen] = useState(queue[0]?.questionFen ?? START_FEN);
   const [wrongSquare, setWrongSquare] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
   const [done, setDone] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -44,6 +47,7 @@ export default function DrillBoard({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const card = queue[idx];
+  const turnChar = color === "WHITE" ? "w" : "b";
 
   // Reset the board for each new card.
   useEffect(() => {
@@ -51,6 +55,7 @@ export default function DrillBoard({
     setBoardFen(card.questionFen);
     setPhase("await");
     setWrongSquare(null);
+    setSelected(null);
   }, [idx, done, card]);
 
   useEffect(() => () => {
@@ -75,29 +80,23 @@ export default function DrillBoard({
     }
   }, [idx, total, finish]);
 
-  const onPieceDrop = useCallback(
-    ({
-      sourceSquare,
-      targetSquare,
-    }: {
-      sourceSquare: string;
-      targetSquare: string | null;
-    }) => {
-      if (phase !== "await" || !card || !targetSquare) return false;
+  // Shared move handling for both drag-drop and click-to-move. Returns true
+  // only when the move is the correct repertoire move (so the dragged piece
+  // settles); illegal or wrong moves return false.
+  const attemptMove = useCallback(
+    (from: string, to: string): boolean => {
+      if (phase !== "await" || !card) return false;
 
       const chess = new Chess(card.questionFen);
       let move;
       try {
-        move = chess.move({
-          from: sourceSquare,
-          to: targetSquare,
-          promotion: "q",
-        });
+        move = chess.move({ from, to, promotion: "q" });
       } catch {
-        return false; // illegal — snap back
+        return false; // illegal
       }
       if (!move) return false;
 
+      setSelected(null);
       const uci = `${move.from}${move.to}${move.promotion ?? ""}`;
       const correct = uci === card.expectedUci;
       results.current.push({ moveNodeId: card.moveNodeId, correct });
@@ -109,21 +108,71 @@ export default function DrillBoard({
         return true;
       }
 
-      setWrongSquare(targetSquare);
+      setWrongSquare(to);
       setPhase("wrong");
       return false; // keep the question position; we reveal the right move
     },
     [phase, card, advance],
   );
 
+  const onPieceDrop = useCallback(
+    ({
+      sourceSquare,
+      targetSquare,
+    }: {
+      sourceSquare: string;
+      targetSquare: string | null;
+    }) => {
+      if (!targetSquare) return false;
+      return attemptMove(sourceSquare, targetSquare);
+    },
+    [attemptMove],
+  );
+
+  // Click-to-move: first click selects your piece, second click moves it.
+  const onSquareClick = useCallback(
+    ({ piece, square }: { piece: { pieceType: string } | null; square: string }) => {
+      if (phase !== "await" || !card) return;
+      const isOwnPiece = !!piece && piece.pieceType[0] === turnChar;
+
+      if (selected) {
+        if (square === selected) {
+          setSelected(null);
+        } else if (isOwnPiece) {
+          setSelected(square); // switch selection
+        } else {
+          attemptMove(selected, square);
+        }
+        return;
+      }
+      if (isOwnPiece) setSelected(square);
+    },
+    [phase, card, selected, turnChar, attemptMove],
+  );
+
+  // Legal destinations for the selected piece (for move-hint dots).
+  const legalTargets = useMemo<string[]>(() => {
+    if (!selected || !card) return [];
+    const chess = new Chess(card.questionFen);
+    return chess
+      .moves({ square: selected as Square, verbose: true })
+      .map((m) => m.to);
+  }, [selected, card]);
+
   // Highlights and arrows for the current phase.
   const squareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     if (!card) return {};
-    if (phase === "await" && card.lastOpponentMove) {
-      return {
-        [card.lastOpponentMove.from]: { backgroundColor: YELLOW },
-        [card.lastOpponentMove.to]: { backgroundColor: YELLOW },
-      };
+    if (phase === "await") {
+      const styles: Record<string, React.CSSProperties> = {};
+      if (card.lastOpponentMove) {
+        styles[card.lastOpponentMove.from] = { backgroundColor: YELLOW };
+        styles[card.lastOpponentMove.to] = { backgroundColor: YELLOW };
+      }
+      for (const sq of legalTargets) {
+        styles[sq] = { ...(styles[sq] ?? {}), backgroundImage: DOT };
+      }
+      if (selected) styles[selected] = { backgroundColor: SELECT };
+      return styles;
     }
     if (phase === "wrong") {
       const from = card.expectedUci.slice(0, 2);
@@ -136,7 +185,7 @@ export default function DrillBoard({
       return styles;
     }
     return {};
-  }, [card, phase, wrongSquare]);
+  }, [card, phase, wrongSquare, selected, legalTargets]);
 
   const arrows = useMemo(() => {
     if (phase === "wrong" && card) {
@@ -257,6 +306,7 @@ export default function DrillBoard({
               boardOrientation: color === "BLACK" ? "black" : "white",
               allowDragging: phase === "await",
               onPieceDrop,
+              onSquareClick,
               squareStyles,
               arrows,
               animationDurationInMs: 200,
