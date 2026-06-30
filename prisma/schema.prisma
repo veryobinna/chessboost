@@ -7,7 +7,12 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  // Runtime uses the pooled connection (PgBouncer) for serverless; schema
+  // changes (db push / migrate) use the direct connection. On Neon, set
+  // DATABASE_URL to the "-pooler" host and DIRECT_URL to the direct host.
+  // Locally, both point at the same Postgres.
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Color {

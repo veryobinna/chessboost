@@ -37,14 +37,22 @@ export default async function RepertoirePage({
             {cardCount} cards
           </p>
         </div>
-        {cardCount > 0 && (
+        <div className="flex gap-3">
           <Link
-            href={`/repertoires/${repertoire.id}/drill`}
-            className="rounded-lg bg-accent px-5 py-2.5 font-semibold text-stone-950 transition hover:opacity-90"
+            href={`/repertoires/${repertoire.id}/edit`}
+            className="rounded-lg border border-border px-5 py-2.5 font-semibold transition hover:border-accent"
           >
-            Drill ▶
+            Edit
           </Link>
-        )}
+          {cardCount > 0 && (
+            <Link
+              href={`/repertoires/${repertoire.id}/drill`}
+              className="rounded-lg bg-accent px-5 py-2.5 font-semibold text-stone-950 transition hover:opacity-90"
+            >
+              Drill ▶
+            </Link>
+          )}
+        </div>
       </header>
 
       <RepertoireViewer color={repertoire.color} nodes={nodes} />

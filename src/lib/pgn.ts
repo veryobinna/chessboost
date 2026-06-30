@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { parseGame } from "@mliebelt/pgn-parser";
+import { parseGames } from "@mliebelt/pgn-parser";
 import type { Color } from "@prisma/client";
 
 // A parsed repertoire move tree (pre-persistence). Each node is one move plus
@@ -70,29 +70,56 @@ function attachLine(
   const [head, ...rest] = moves;
 
   const node = makeNode(head, fromFen, ply, color);
-  siblings.push(node);
 
-  // Alternatives to `head` at the same position → siblings of `node`.
+  // Merge: if this move already exists at this position (same line reached via
+  // another chapter/variation), reuse that node instead of duplicating it.
+  let target = siblings.find((s) => s.uci === node.uci);
+  if (target) {
+    if (!target.comment && node.comment) target.comment = node.comment;
+    if (target.nag == null && node.nag != null) target.nag = node.nag;
+  } else {
+    siblings.push(node);
+    target = node;
+  }
+
+  // Alternatives to `head` at the same position → siblings of `target`.
   for (const variation of head.variations ?? []) {
     attachLine(variation, siblings, fromFen, ply, color);
   }
 
-  // The continuation after `head` → children of `node`.
-  attachLine(rest, node.children, node.fenAfter, ply + 1, color);
+  // The continuation after `head` → children of `target`.
+  attachLine(rest, target.children, target.fenAfter, ply + 1, color);
 }
 
+type PgnGame = { tags?: unknown; moves?: PgnMove[] };
+
 /**
- * Parse a PGN (with variations) into a repertoire move tree.
- * Throws if the PGN is empty or contains an illegal move.
+ * Parse a PGN into a repertoire move tree. Handles multiple games/chapters
+ * (e.g. a Lichess study export) by merging them into one forest.
+ * Throws if the PGN is empty, starts from a custom position, or is illegal.
  */
 export function parsePgnToTree(pgn: string, color: Color): ParsedNode[] {
-  const game = parseGame(pgn.trim());
-  const moves = (game?.moves ?? []) as PgnMove[];
-  if (moves.length === 0) {
+  const games = parseGames(pgn.trim()) as PgnGame[];
+  const roots: ParsedNode[] = [];
+
+  for (const game of games) {
+    const moves = (game?.moves ?? []) as PgnMove[];
+    if (moves.length === 0) continue;
+
+    const tags = game?.tags as Record<string, unknown> | undefined;
+    const fen = typeof tags?.FEN === "string" ? tags.FEN : undefined;
+    if (fen && fen !== START_FEN) {
+      throw new Error(
+        "PGNs/studies that start from a custom position aren't supported yet.",
+      );
+    }
+
+    attachLine(moves, roots, START_FEN, 1, color);
+  }
+
+  if (roots.length === 0) {
     throw new Error("No moves found in PGN.");
   }
-  const roots: ParsedNode[] = [];
-  attachLine(moves, roots, START_FEN, 1, color);
   return roots;
 }
 

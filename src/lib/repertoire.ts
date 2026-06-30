@@ -57,6 +57,15 @@ export async function createRepertoireFromPgn(
   ).then((r) => ({ repertoire: r, moveCount: total }));
 }
 
+/** Create an empty repertoire to build by hand in the editor. */
+export async function createEmptyRepertoire(
+  userId: string,
+  name: string,
+  color: Color,
+) {
+  return prisma.repertoire.create({ data: { userId, name, color } });
+}
+
 export async function listRepertoires(userId: string) {
   return prisma.repertoire.findMany({
     where: { userId },

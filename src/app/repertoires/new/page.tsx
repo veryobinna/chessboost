@@ -1,5 +1,5 @@
 import Link from "next/link";
-import ImportForm from "@/components/ImportForm";
+import NewRepertoire from "@/components/NewRepertoire";
 
 export default function NewRepertoirePage() {
   return (
@@ -11,14 +11,13 @@ export default function NewRepertoirePage() {
         >
           ← Repertoires
         </Link>
-        <h1 className="mt-2 text-2xl font-bold">Import a repertoire</h1>
+        <h1 className="mt-2 text-2xl font-bold">New repertoire</h1>
         <p className="mt-1 text-sm text-muted">
-          Paste a PGN — including variations in parentheses — and we&apos;ll build
-          the move tree.
+          Paste a PGN, import a Lichess study, or build one from scratch.
         </p>
       </header>
 
-      <ImportForm />
+      <NewRepertoire />
     </main>
   );
 }
