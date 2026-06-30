@@ -1,0 +1,23 @@
+# Local Postgres for development. In production we use Neon (see .env.example).
+# Start with:  docker compose up -d
+services:
+  db:
+    image: postgres:16
+    container_name: chessboost-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chessboost
+      POSTGRES_PASSWORD: chessboost
+      POSTGRES_DB: chessboost
+    ports:
+      - "5433:5432" # host 5433 to avoid clashing with a local 5432
+    volumes:
+      - chessboost-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chessboost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  chessboost-pgdata:

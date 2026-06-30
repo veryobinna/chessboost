@@ -1,0 +1,116 @@
+// ChessBoost data model — see DESIGN.md §3.
+// A repertoire is a tree of MoveNodes; each *player* move owns one SRS Card.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Color {
+  WHITE
+  BLACK
+}
+
+enum CardState {
+  NEW
+  LEARNING
+  REVIEW
+  RELEARNING
+}
+
+enum Rating {
+  AGAIN
+  HARD
+  GOOD
+  EASY
+}
+
+// A user. Guests are created lazily from a signed cookie (see lib/guest.ts).
+// In Phase 4, OAuth accounts reuse this table and "claim" guest data.
+model User {
+  id          String       @id @default(cuid())
+  isGuest     Boolean      @default(true)
+  guestToken  String?      @unique
+  name        String?
+  email       String?      @unique
+  image       String?
+  createdAt   DateTime     @default(now())
+  repertoires Repertoire[]
+  cards       Card[]
+}
+
+// One opening repertoire for one color.
+model Repertoire {
+  id        String     @id @default(cuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  color     Color
+  startFen  String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  nodes     MoveNode[]
+
+  @@index([userId])
+}
+
+// A node in the repertoire move tree: one move + the resulting position.
+model MoveNode {
+  id           String     @id @default(cuid())
+  repertoireId String
+  repertoire   Repertoire @relation(fields: [repertoireId], references: [id], onDelete: Cascade)
+  parentId     String?
+  parent       MoveNode?  @relation("NodeChildren", fields: [parentId], references: [id], onDelete: Cascade)
+  children     MoveNode[] @relation("NodeChildren")
+  ply          Int // half-move depth from the start
+  san          String // e.g. "Nf3"
+  uci          String // e.g. "g1f3"
+  fenAfter     String // FEN of the position after this move
+  isPlayerMove Boolean // true => this move generates a Card
+  comment      String?
+  nag          Int? // chess annotation glyph (!, ?, !!, ...)
+  card         Card?
+
+  @@index([repertoireId, parentId])
+}
+
+// Spaced-repetition state for one player move. Scheduling fields are populated
+// in Phase 4 (FSRS); until then a Card is simply "always eligible".
+model Card {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moveNodeId String      @unique
+  moveNode   MoveNode    @relation(fields: [moveNodeId], references: [id], onDelete: Cascade)
+  due        DateTime    @default(now())
+  stability  Float       @default(0)
+  difficulty Float       @default(0)
+  state      CardState   @default(NEW)
+  reps       Int         @default(0)
+  lapses     Int         @default(0)
+  lastReview DateTime?
+  reviews    ReviewLog[]
+
+  @@index([userId, due])
+}
+
+// Immutable history of every review — powers stats and (later) FSRS tuning.
+model ReviewLog {
+  id            String    @id @default(cuid())
+  cardId        String
+  card          Card      @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  rating        Rating
+  state         CardState
+  due           DateTime
+  stability     Float
+  difficulty    Float
+  elapsedDays   Int
+  scheduledDays Int
+  reviewedAt    DateTime  @default(now())
+
+  @@index([cardId])
+}
