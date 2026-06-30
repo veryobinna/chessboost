@@ -23,7 +23,7 @@ export default async function RepertoirePage({
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12">
-      <header className="mb-8 flex items-center justify-between">
+      <header className="mb-8 flex items-end justify-between gap-4">
         <div>
           <Link
             href="/repertoires"
@@ -37,6 +37,14 @@ export default async function RepertoirePage({
             {cardCount} cards
           </p>
         </div>
+        {cardCount > 0 && (
+          <Link
+            href={`/repertoires/${repertoire.id}/drill`}
+            className="rounded-lg bg-accent px-5 py-2.5 font-semibold text-stone-950 transition hover:opacity-90"
+          >
+            Drill ▶
+          </Link>
+        )}
       </header>
 
       <RepertoireViewer color={repertoire.color} nodes={nodes} />

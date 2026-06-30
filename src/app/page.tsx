@@ -45,7 +45,7 @@ export default function Home() {
       </section>
 
       <footer className="border-t border-border px-6 py-6 text-center text-sm text-muted">
-        ChessBoost — a portfolio project. Built with Next.js.
+        ChessBoost — train your openings, remember your lines.
       </footer>
     </main>
   );

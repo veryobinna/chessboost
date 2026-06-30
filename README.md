@@ -4,7 +4,7 @@ Train your chess **opening repertoire** with **spaced repetition**. Build your l
 then drill them — the app plays the opponent and quizzes you on your moves so the right
 continuation becomes automatic.
 
-> Portfolio project. Full design and roadmap in [DESIGN.md](./DESIGN.md).
+Full design and roadmap in [DESIGN.md](./DESIGN.md).
 
 ## Stack
 
