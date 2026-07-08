@@ -122,3 +122,40 @@ export async function setCommentAction(
   revalidatePath(`/repertoires/${repertoireId}`);
   return { ok: true };
 }
+
+/** Set or clear a move's evaluation glyph (NAG). 0 clears it. */
+export async function setEvalAction(
+  repertoireId: string,
+  nodeId: string,
+  nag: number,
+): Promise<{ ok: boolean }> {
+  const owned = await ownedRepertoire(repertoireId);
+  if (!owned) return { ok: false };
+
+  await prisma.moveNode.updateMany({
+    where: { id: nodeId, repertoireId },
+    data: { nag: nag > 0 ? nag : null },
+  });
+  revalidatePath(`/repertoires/${repertoireId}`);
+  return { ok: true };
+}
+
+/** Update the lesson hook (intro) and the optional article. */
+export async function updateLessonAction(
+  repertoireId: string,
+  intro: string,
+  article: string,
+): Promise<{ ok: boolean }> {
+  const owned = await ownedRepertoire(repertoireId);
+  if (!owned) return { ok: false };
+
+  await prisma.repertoire.update({
+    where: { id: repertoireId },
+    data: {
+      intro: intro.trim() || null,
+      article: article.trim() || null,
+    },
+  });
+  revalidatePath(`/repertoires/${repertoireId}`);
+  return { ok: true };
+}

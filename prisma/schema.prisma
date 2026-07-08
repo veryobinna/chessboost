@@ -56,6 +56,8 @@ model Repertoire {
   name      String
   color     Color
   startFen  String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  intro     String? // short hook shown at the start of the guided lesson
+  article   String? // optional long-form lesson (markdown), hidden by default
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   nodes     MoveNode[]

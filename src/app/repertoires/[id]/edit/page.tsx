@@ -38,6 +38,8 @@ export default async function EditPage({
         repertoireId={id}
         color={data.repertoire.color}
         initialNodes={data.nodes}
+        initialIntro={data.repertoire.intro ?? ""}
+        initialArticle={data.repertoire.article ?? ""}
       />
     </main>
   );

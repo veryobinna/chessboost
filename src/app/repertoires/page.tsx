@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/session";
 import { listRepertoires } from "@/lib/repertoire";
+import BoardThumbnail from "@/components/BoardThumbnail";
 import { deleteRepertoireAction } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -43,10 +44,16 @@ export default async function RepertoiresPage() {
               key={r.id}
               className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
             >
-              <Link href={`/repertoires/${r.id}`} className="flex-1">
-                <span className="font-medium">{r.name}</span>
-                <span className="ml-2 text-sm text-muted">
-                  {r.color.toLowerCase()} · {r._count.nodes} moves
+              <Link href={`/repertoires/${r.id}`} className="flex flex-1 items-center gap-4">
+                <BoardThumbnail
+                  fen={r.previewFen}
+                  orientation={r.color === "BLACK" ? "black" : "white"}
+                />
+                <span>
+                  <span className="font-medium">{r.name}</span>
+                  <span className="block text-sm text-muted">
+                    {r.color.toLowerCase()} · {r._count.nodes} moves
+                  </span>
                 </span>
               </Link>
               <form action={deleteRepertoireAction}>

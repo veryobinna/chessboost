@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { getRepertoire } from "@/lib/repertoire";
-import RepertoireViewer from "@/components/RepertoireViewer";
+import LessonBoard from "@/components/LessonBoard";
+import ArticlePanel from "@/components/ArticlePanel";
 
 export const dynamic = "force-dynamic";
 
@@ -55,7 +56,13 @@ export default async function RepertoirePage({
         </div>
       </header>
 
-      <RepertoireViewer color={repertoire.color} nodes={nodes} />
+      <ArticlePanel article={repertoire.article} />
+
+      <LessonBoard
+        color={repertoire.color}
+        intro={repertoire.intro}
+        nodes={nodes}
+      />
     </main>
   );
 }
