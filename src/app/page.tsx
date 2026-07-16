@@ -19,10 +19,16 @@ export default function Home() {
 
         <div className="flex flex-wrap items-center justify-center gap-4">
           <Link
-            href="/dashboard"
+            href="/courses"
             className="rounded-lg bg-accent px-6 py-3 font-semibold text-stone-950 transition hover:opacity-90"
           >
-            Start training →
+            Browse courses →
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-lg border border-border px-6 py-3 font-semibold transition hover:border-accent"
+          >
+            My training
           </Link>
           <span className="text-sm text-muted">No sign-up needed</span>
         </div>

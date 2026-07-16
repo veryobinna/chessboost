@@ -66,11 +66,43 @@ export async function createEmptyRepertoire(
   return prisma.repertoire.create({ data: { userId, name, color } });
 }
 
+const START_FEN =
+  "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
 export async function listRepertoires(userId: string) {
-  return prisma.repertoire.findMany({
+  const repertoires = await prisma.repertoire.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },
     include: { _count: { select: { nodes: true } } },
+  });
+
+  // A thumbnail = the main-line position a few moves in. Fetch only shallow
+  // nodes (ply <= 8) so large repertoires stay cheap, then walk first-children.
+  const shallow = await prisma.moveNode.findMany({
+    where: { repertoireId: { in: repertoires.map((r) => r.id) }, ply: { lte: 8 } },
+    orderBy: [{ ply: "asc" }, { id: "asc" }],
+    select: { repertoireId: true, parentId: true, id: true, fenAfter: true },
+  });
+
+  const childrenByRep = new Map<string, Map<string, typeof shallow>>();
+  for (const n of shallow) {
+    const rep = childrenByRep.get(n.repertoireId) ?? new Map();
+    const key = n.parentId ?? "root";
+    (rep.get(key) ?? rep.set(key, []).get(key)!).push(n);
+    childrenByRep.set(n.repertoireId, rep);
+  }
+
+  return repertoires.map((r) => {
+    const children = childrenByRep.get(r.id);
+    let fen = START_FEN;
+    let cursor = "root";
+    for (let depth = 0; depth < 8; depth++) {
+      const next = children?.get(cursor)?.[0];
+      if (!next) break;
+      fen = next.fenAfter;
+      cursor = next.id;
+    }
+    return { ...r, previewFen: fen };
   });
 }
 

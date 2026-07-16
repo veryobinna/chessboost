@@ -5,10 +5,13 @@ import Link from "next/link";
 import { Chess, type Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
 import { START_FEN } from "@/lib/drill";
+import { NAG_OPTIONS } from "@/lib/nag";
 import {
   addMoveAction,
   deleteNodeAction,
   setCommentAction,
+  setEvalAction,
+  updateLessonAction,
   type EditorNode,
 } from "@/app/repertoires/[id]/edit/actions";
 
@@ -24,10 +27,14 @@ export default function RepertoireEditor({
   repertoireId,
   color,
   initialNodes,
+  initialIntro,
+  initialArticle,
 }: {
   repertoireId: string;
   color: "WHITE" | "BLACK";
   initialNodes: EditorNode[];
+  initialIntro: string;
+  initialArticle: string;
 }) {
   const [nodes, setNodes] = useState<EditorNode[]>(initialNodes);
   const [path, setPath] = useState<string[]>([]);
@@ -35,6 +42,9 @@ export default function RepertoireEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [intro, setIntro] = useState(initialIntro);
+  const [article, setArticle] = useState(initialArticle);
+  const [lessonSaved, setLessonSaved] = useState(false);
 
   const byId = useMemo(
     () => new Map(nodes.map((n) => [n.id, n])),
@@ -187,7 +197,26 @@ export default function RepertoireEditor({
     );
   }
 
+  async function changeEval(nag: number) {
+    if (!currentNode) return;
+    const id = currentNode.id;
+    setNodes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, nag: nag > 0 ? nag : null } : n)),
+    );
+    await setEvalAction(repertoireId, id, nag);
+  }
+
+  async function saveLesson() {
+    setBusy(true);
+    await updateLessonAction(repertoireId, intro, article);
+    setBusy(false);
+    setLessonSaved(true);
+    setTimeout(() => setLessonSaved(false), 2000);
+  }
+
   const turnName = turnChar === "w" ? "White" : "Black";
+  const lessonDirty =
+    intro !== initialIntro || article !== initialArticle;
 
   return (
     <div className="grid gap-6 md:grid-cols-[minmax(0,480px)_1fr]">
@@ -286,12 +315,28 @@ export default function RepertoireEditor({
           </div>
         )}
 
-        {/* Comment editor for the current move */}
+        {/* Note + evaluation for the current move */}
         {currentNode && (
           <div>
-            <h3 className="mb-2 text-sm font-semibold text-muted">
-              Note on {currentNode.san}
-            </h3>
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-muted">
+                Note on {currentNode.san}
+              </h3>
+              <label className="flex items-center gap-1 text-xs text-muted">
+                Eval
+                <select
+                  value={currentNode.nag ?? 0}
+                  onChange={(e) => changeEval(Number(e.target.value))}
+                  className="rounded border border-border bg-card px-2 py-1 text-foreground outline-none focus:border-accent"
+                >
+                  {NAG_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
             <textarea
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
@@ -308,6 +353,48 @@ export default function RepertoireEditor({
             </button>
           </div>
         )}
+
+        {/* Lesson info: hook + optional article */}
+        <details className="rounded-lg border border-border bg-card">
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold">
+            Lesson text (intro & article)
+          </summary>
+          <div className="flex flex-col gap-3 border-t border-border px-4 py-3">
+            <div className="flex flex-col gap-1">
+              <label htmlFor="intro" className="text-xs text-muted">
+                Intro hook — shown at the start of the lesson
+              </label>
+              <textarea
+                id="intro"
+                value={intro}
+                onChange={(e) => setIntro(e.target.value)}
+                rows={2}
+                placeholder="e.g. Let's learn a tricky, dangerous opening: the Ponziani."
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label htmlFor="article" className="text-xs text-muted">
+                Article — optional deep dive (history, ideas, who plays it…)
+              </label>
+              <textarea
+                id="article"
+                value={article}
+                onChange={(e) => setArticle(e.target.value)}
+                rows={6}
+                placeholder="Blank line separates paragraphs. Hidden behind 'About this opening'."
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <button
+              onClick={saveLesson}
+              disabled={busy || !lessonDirty}
+              className="self-start rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent disabled:opacity-40"
+            >
+              {lessonSaved ? "Saved ✓" : "Save lesson text"}
+            </button>
+          </div>
+        </details>
 
         <Link
           href={`/repertoires/${repertoireId}`}
