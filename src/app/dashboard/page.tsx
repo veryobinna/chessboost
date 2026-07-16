@@ -41,19 +41,31 @@ export default async function DashboardPage() {
       <section className="rounded-xl border border-border bg-card p-6">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="font-semibold">Your repertoires</h2>
-          <Link
-            href="/repertoires/new"
-            className="rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent"
-          >
-            + Import
-          </Link>
+          <div className="flex gap-2">
+            <Link
+              href="/courses"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent"
+            >
+              Browse courses
+            </Link>
+            <Link
+              href="/repertoires/new"
+              className="rounded-lg border border-border px-3 py-1.5 text-sm transition hover:border-accent"
+            >
+              + Import
+            </Link>
+          </div>
         </div>
 
         {repertoires.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">
-            No repertoires yet.{" "}
+            Nothing here yet.{" "}
+            <Link href="/courses" className="text-accent hover:underline">
+              Pick a course
+            </Link>{" "}
+            or{" "}
             <Link href="/repertoires/new" className="text-accent hover:underline">
-              Import a PGN
+              import a PGN
             </Link>{" "}
             to get started.
           </p>

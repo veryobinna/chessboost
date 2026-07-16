@@ -59,6 +59,10 @@ export default function LessonBoard({
   const branches = children.slice(1);
   const turnChar = fen.split(" ")[1] === "b" ? "b" : "w";
   const turnName = turnChar === "w" ? "White" : "Black";
+  const playerChar = color === "WHITE" ? "w" : "b";
+  const isPlayerTurn = turnChar === playerChar;
+  // The opponent pauses only when there are several replies to study.
+  const opponentChoosing = !isPlayerTurn && children.length > 1;
 
   useEffect(() => setSelected(null), [path.length]);
 
@@ -67,6 +71,14 @@ export default function LessonBoard({
     setSelected(null);
     setPath((p) => [...p, node]);
   }, []);
+
+  // The system plays the opponent's side: when it's not the player's turn and
+  // there is a single reply in the course, play it after a short beat.
+  useEffect(() => {
+    if (isPlayerTurn || children.length !== 1) return;
+    const t = setTimeout(() => play(children[0]), 700);
+    return () => clearTimeout(t);
+  }, [isPlayerTurn, children, play]);
 
   const tryMove = useCallback(
     (from: string, to: string): boolean => {
@@ -124,9 +136,9 @@ export default function LessonBoard({
     return s;
   }, [legalTargets, selected]);
 
-  // A gentle arrow hint for the suggested next move.
+  // A gentle arrow hint — only when it's the player's move to find.
   const arrows = useMemo(() => {
-    if (!mainChild) return [];
+    if (!mainChild || !isPlayerTurn) return [];
     return [
       {
         startSquare: mainChild.uci.slice(0, 2),
@@ -134,7 +146,26 @@ export default function LessonBoard({
         color: HINT,
       },
     ];
-  }, [mainChild]);
+  }, [mainChild, isPlayerTurn]);
+
+  // Back = undo your last move (and the opponent's reply before it), landing
+  // on a position where it's your turn again — otherwise the auto-reply would
+  // immediately re-play what we just undid.
+  const goBack = useCallback(() => {
+    setNudge(false);
+    setPath((p) => {
+      let np = p.slice(0, -1);
+      while (np.length > 0) {
+        const f = np[np.length - 1]?.fenAfter ?? START_FEN;
+        if ((f.split(" ")[1] === "b" ? "b" : "w") === playerChar) break;
+        // Opponent to move with a single scripted reply → keep popping.
+        const kids = childrenOf.get(np[np.length - 1]?.id ?? "root") ?? [];
+        if (kids.length > 1) break; // a choice point is a fine place to stop
+        np = np.slice(0, -1);
+      }
+      return np;
+    });
+  }, [playerChar, childrenOf]);
 
   const info = nagInfo(current?.nag);
   const atStart = path.length === 0;
@@ -161,7 +192,7 @@ export default function LessonBoard({
           <Nav onClick={() => setPath([])} disabled={atStart}>
             ⏮ Restart
           </Nav>
-          <Nav onClick={() => setPath((p) => p.slice(0, -1))} disabled={atStart}>
+          <Nav onClick={goBack} disabled={atStart}>
             ‹ Back
           </Nav>
           <Nav onClick={() => mainChild && play(mainChild)} disabled={!mainChild}>
@@ -220,11 +251,13 @@ export default function LessonBoard({
           )}
 
           <div className="mt-3 border-t border-border pt-3 text-sm">
-            {mainChild ? (
+            {!mainChild ? (
+              <p className="text-muted">
+                End of this line. Use ‹ Back or ⏮ Restart to explore another.
+              </p>
+            ) : isPlayerTurn ? (
               <p>
-                <span className="font-semibold text-sky-300">
-                  {turnName} to move.
-                </span>{" "}
+                <span className="font-semibold text-sky-300">Your move.</span>{" "}
                 Play <span className="font-semibold">{mainChild.san}</span> — drag it,
                 or{" "}
                 <button
@@ -240,19 +273,55 @@ export default function LessonBoard({
                   </span>
                 )}
               </p>
-            ) : (
-              <p className="text-muted">
-                End of this line. Use ‹ Back or ⏮ Restart to explore another.
+            ) : opponentChoosing ? (
+              <p>
+                <span className="font-semibold text-sky-300">
+                  {turnName} has {children.length} main tries here.
+                </span>{" "}
+                Pick the reply you want to study below.
               </p>
+            ) : (
+              <p className="text-muted">{turnName} is replying…</p>
             )}
           </div>
         </div>
 
-        {/* Alternatives / traps to explore */}
-        {branches.length > 0 && (
+        {/* Opponent choice point: pick which reply to study */}
+        {opponentChoosing && (
           <div>
             <h3 className="mb-2 text-sm font-semibold text-muted">
-              If {turnName} tries something else
+              What will {turnName} play?
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              {children.map((n, i) => {
+                const bi = nagInfo(n.nag);
+                return (
+                  <button
+                    key={n.id}
+                    onClick={() => play(n)}
+                    className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition hover:border-accent ${
+                      bi?.bad
+                        ? "border-red-900/60 bg-red-950/20"
+                        : i === 0
+                          ? "border-accent/50 bg-accent/10"
+                          : "border-border bg-card"
+                    }`}
+                    title={bi?.label ?? (i === 0 ? "Main line" : undefined)}
+                  >
+                    {n.san}
+                    {bi && <span className={`ml-1 ${bi.className}`}>{bi.glyph}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Player's own alternatives at this position */}
+        {isPlayerTurn && branches.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-sm font-semibold text-muted">
+              Also playable here
             </h3>
             <div className="flex flex-wrap gap-2">
               {branches.map((n) => {

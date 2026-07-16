@@ -30,12 +30,14 @@ export default async function RepertoiresPage() {
       {repertoires.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-10 text-center">
           <p className="text-muted">No repertoires yet.</p>
-          <Link
-            href="/repertoires/new"
-            className="mt-3 inline-block text-accent hover:underline"
-          >
-            Import your first PGN →
-          </Link>
+          <div className="mt-3 flex justify-center gap-4">
+            <Link href="/courses" className="text-accent hover:underline">
+              Pick a ready-made course →
+            </Link>
+            <Link href="/repertoires/new" className="text-accent hover:underline">
+              Import a PGN →
+            </Link>
+          </div>
         </div>
       ) : (
         <ul className="flex flex-col gap-3">

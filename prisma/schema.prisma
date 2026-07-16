@@ -39,6 +39,7 @@ enum Rating {
 model User {
   id          String       @id @default(cuid())
   isGuest     Boolean      @default(true)
+  isAdmin     Boolean      @default(false)
   guestToken  String?      @unique
   name        String?
   email       String?      @unique
@@ -58,11 +59,20 @@ model Repertoire {
   startFen  String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
   intro     String? // short hook shown at the start of the guided lesson
   article   String? // optional long-form lesson (markdown), hidden by default
+
+  // Course-library fields (a "course" is a published repertoire).
+  isPublished Boolean @default(false)
+  slug        String? @unique // stable id for seeding + future /opening/[slug] pages
+  description String? // catalog card blurb
+  category    String? // e.g. "Classical", "Gambit", "Trap-heavy"
+  sourceId    String? // course this repertoire was cloned from
+
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   nodes     MoveNode[]
 
   @@index([userId])
+  @@index([isPublished])
 }
 
 // A node in the repertoire move tree: one move + the resulting position.
